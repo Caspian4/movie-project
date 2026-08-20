@@ -137,7 +137,17 @@ jobs:
             --name cluster \
             --region ${{ secrets.AWS_REGION }} \
             --query 'cluster.resourcesVpcConfig.subnetIds'
-  
+      - name: Find subnet in node AZ
+        run: |
+          NODE_IP=$(kubectl get pod -l app=frontend \
+            -o jsonpath='{.items[0].status.hostIP}')
+      
+          echo "Node IP: $NODE_IP"
+      
+          aws ec2 describe-instances \
+            --filters "Name=private-ip-address,Values=$NODE_IP" \
+            --region ${{ secrets.AWS_REGION }} \
+            --query 'Reservations[0].Instances[0].Placement.AvailabilityZone'
       - name: Deploy to EKS
         working-directory: starter/frontend/k8s
         run: kubectl apply -k .
