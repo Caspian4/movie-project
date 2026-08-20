@@ -105,7 +105,7 @@ jobs:
         working-directory: starter/frontend
         run: |
           docker build \
-            --build-arg REACT_APP_MOVIE_API_URL=http://k8s-default-backend-04db608027-18be7f4be394aa07.elb.${{ secrets.AWS_REGION }}.amazonaws.com \
+            --build-arg REACT_APP_MOVIE_API_URL="${{ secrets.REACT_APP_MOVIE_API_URL }}" \
             --tag frontend:latest .
   
       - name: Tag Docker image
@@ -154,9 +154,9 @@ jobs:
             --region ${{ secrets.AWS_REGION }} \
             --query 'NetworkInterfaces[].{SubnetId:SubnetId,AZ:AvailabilityZone,PrivateIP:PrivateIpAddress}' \
             --output table
-            - name: Deploy to EKS
-              working-directory: starter/frontend/k8s
-              run: kubectl apply -k .
+      - name: Deploy to EKS
+        working-directory: starter/frontend/k8s
+        run: kubectl apply -k .
   
       - name: Update frontend image
         run: |
