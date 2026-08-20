@@ -171,6 +171,12 @@ jobs:
         run: |
           kubectl get svc backend -o wide
           kubectl get nodes -o wide
+        
+      - name: Test backend through NLB
+        run: |
+          NLB_URL=$(kubectl get svc backend -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          echo "Testing: http://$NLB_URL/movies"
+          curl -v --connect-timeout 10 "http://$NLB_URL/movies"
 
       - name: Verify deployment
         run: |
