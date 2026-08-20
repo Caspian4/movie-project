@@ -119,6 +119,19 @@ jobs:
           aws eks update-kubeconfig \
             --name cluster \
             --region ${{ secrets.AWS_REGION }}
+      - name: Check EKS configuration
+        run: |
+          aws eks describe-cluster \
+            --name cluster \
+            --region ${{ secrets.AWS_REGION }} \
+            --query 'cluster.computeConfig'
+
+      - name: Check cluster subnets
+        run: |
+          aws eks describe-cluster \
+            --name cluster \
+            --region ${{ secrets.AWS_REGION }} \
+            --query 'cluster.resourcesVpcConfig.subnetIds'
 
       - name: Deploy to EKS
         working-directory: starter/backend/k8s
