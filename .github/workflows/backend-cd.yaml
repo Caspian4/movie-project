@@ -121,7 +121,7 @@ jobs:
             --region ${{ secrets.AWS_REGION }}
 
       - name: Deploy to EKS
-        working-directory: starter/backend
+        working-directory: starter/backend/k8s
         run: kubectl apply -k .
 
       - name: Update deployment image
