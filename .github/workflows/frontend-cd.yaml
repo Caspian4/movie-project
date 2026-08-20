@@ -137,20 +137,26 @@ jobs:
             --name cluster \
             --region ${{ secrets.AWS_REGION }} \
             --query 'cluster.resourcesVpcConfig.subnetIds'
-      - name: Find subnet in node AZ
+      - name: Find frontend node AZ and subnet
         run: |
-          NODE_IP=$(kubectl get pod -l app=frontend \
-            -o jsonpath='{.items[0].status.hostIP}')
+          NODE=$(kubectl get pod -l app=frontend \
+            -o jsonpath='{.items[0].spec.nodeName}')
+      
+          echo "Frontend node: $NODE"
+      
+          NODE_IP=$(kubectl get node "$NODE" \
+            -o jsonpath='{.status.addresses[?(@.type=="InternalIP")].address}')
       
           echo "Node IP: $NODE_IP"
       
-          aws ec2 describe-instances \
+          aws ec2 describe-network-interfaces \
             --filters "Name=private-ip-address,Values=$NODE_IP" \
             --region ${{ secrets.AWS_REGION }} \
-            --query 'Reservations[0].Instances[0].Placement.AvailabilityZone'
-      - name: Deploy to EKS
-        working-directory: starter/frontend/k8s
-        run: kubectl apply -k .
+            --query 'NetworkInterfaces[].{SubnetId:SubnetId,AZ:AvailabilityZone,PrivateIP:PrivateIpAddress}' \
+            --output table
+            - name: Deploy to EKS
+              working-directory: starter/frontend/k8s
+              run: kubectl apply -k .
   
       - name: Update frontend image
         run: |
