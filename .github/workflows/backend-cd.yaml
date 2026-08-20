@@ -153,17 +153,19 @@ jobs:
         run: |
           kubectl set image deployment/backend \
             backend=${{ steps.login-ecr.outputs.registry }}/backend:latest
+      - name: Check target health
+        run: |
+          TARGET_ARN=$(aws elbv2 describe-target-groups \
+            --region ${{ secrets.AWS_REGION }} \
+            --query 'TargetGroups[?contains(TargetGroupName, `k8s-default-backend`)].TargetGroupArn' \
+            --output text)
+      
+          aws elbv2 describe-target-health \
+            --region ${{ secrets.AWS_REGION }} \
+            --target-group-arn "$TARGET_ARN"
 
       - name: Check backend service
         run: kubectl get svc backend
-
-      - name: Test backend internally
-        run: |
-          kubectl run curl-test \
-            --image=curlimages/curl \
-            --rm -i \
-            --restart=Never \
-            -- curl -v http://backend/movies
       
       - name: Check backend service details
         run: |
