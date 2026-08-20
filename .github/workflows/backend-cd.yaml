@@ -132,6 +132,9 @@ jobs:
       - name: Check backend service
         run: kubectl get svc backend
 
+      - name: Describe backend service
+        run: kubectl describe svc backend
+
       - name: Verify deployment
         run: |
           kubectl rollout status deployment/backend
