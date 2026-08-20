@@ -152,6 +152,11 @@ jobs:
             --rm -i \
             --restart=Never \
             -- curl -v http://backend/movies
+      
+      - name: Check backend service details
+        run: |
+          kubectl get svc backend -o wide
+          kubectl get nodes -o wide
 
       - name: Verify deployment
         run: |
