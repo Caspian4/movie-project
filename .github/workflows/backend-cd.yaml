@@ -145,8 +145,11 @@ jobs:
       - name: Check backend service
         run: kubectl get svc backend
 
-      - name: Describe backend service
-        run: kubectl describe svc backend
+      - name: Get backend URL
+        run: |
+          kubectl get svc backend \
+            -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+          echo
 
       - name: Verify deployment
         run: |
