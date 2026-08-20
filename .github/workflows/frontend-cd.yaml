@@ -206,7 +206,32 @@ jobs:
           fi
   
           echo "FRONTEND_URL=http://$NLB_URL" >> "$GITHUB_ENV"
-  
+      - name: Check frontend target health
+        run: |
+          TARGET_ARN=$(aws elbv2 describe-target-groups \
+            --region ${{ secrets.AWS_REGION }} \
+            --query 'TargetGroups[?contains(TargetGroupName, `k8s-default-frontend`)].TargetGroupArn' \
+            --output text)
+      
+          echo "Target Group ARN: $TARGET_ARN"
+      
+          aws elbv2 describe-target-health \
+            --region ${{ secrets.AWS_REGION }} \
+            --target-group-arn "$TARGET_ARN"
+
+      - name: Check frontend NLB listeners
+        run: |
+          NLB_ARN=$(aws elbv2 describe-load-balancers \
+            --region ${{ secrets.AWS_REGION }} \
+            --query 'LoadBalancers[?contains(LoadBalancerName, `k8s-default-frontend`)].LoadBalancerArn' \
+            --output text)
+      
+          echo "NLB ARN: $NLB_ARN"
+      
+          aws elbv2 describe-listeners \
+            --region ${{ secrets.AWS_REGION }} \
+            --load-balancer-arn "$NLB_ARN"
+            
       - name: Test frontend from GitHub runner
         run: |
           echo "Testing: $FRONTEND_URL"
