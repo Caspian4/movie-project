@@ -145,11 +145,13 @@ jobs:
       - name: Check backend service
         run: kubectl get svc backend
 
-      - name: Get backend URL
+      - name: Test backend internally
         run: |
-          kubectl get svc backend \
-            -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
-          echo
+          kubectl run curl-test \
+            --image=curlimages/curl \
+            --rm -i \
+            --restart=Never \
+            -- curl -v http://backend/movies
 
       - name: Verify deployment
         run: |
