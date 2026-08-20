@@ -4,7 +4,7 @@ metadata:
   name: frontend
   annotations:
     service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
-    service.beta.kubernetes.io/aws-load-balancer-subnets: subnet-03f60cb5232683f0c,subnet-045c66a4ced1695b5
+    service.beta.kubernetes.io/aws-load-balancer-subnets: subnet-03f60cb5232683f0c,subnet-0af4ed815b1d4527b,subnet-0f044e2c582b89498,subnet-0d2099f19c54693f5
 spec:
   selector:
     app: frontend
