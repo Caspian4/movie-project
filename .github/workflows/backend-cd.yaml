@@ -95,7 +95,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: ${{ secrets.AWS_REGION }}
-
+      
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
@@ -136,6 +136,18 @@ jobs:
       - name: Deploy to EKS
         working-directory: starter/backend/k8s
         run: kubectl apply -k .
+
+      - name: Check NLB
+        run: |
+          aws elbv2 describe-load-balancers \
+            --region ${{ secrets.AWS_REGION }} \
+            --query 'LoadBalancers[?contains(DNSName, `k8s-default-backend`)].{Name:LoadBalancerName,DNS:DNSName,ARN:LoadBalancerArn,State:State.Code}'
+
+      - name: Check target groups
+        run: |
+          aws elbv2 describe-target-groups \
+            --region ${{ secrets.AWS_REGION }} \
+            --query 'TargetGroups[?contains(TargetGroupName, `k8s-default-backend`)].{Name:TargetGroupName,ARN:TargetGroupArn,Port:Port}'
 
       - name: Update deployment image
         run: |
