@@ -81,14 +81,14 @@ jobs:
 
   deploy:
     runs-on: ubuntu-latest
-
+  
     needs:
       - build
-
+  
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
+  
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -96,47 +96,129 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: ${{ secrets.AWS_REGION }}
-
+  
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
-
+  
       - name: Build Docker image
         working-directory: starter/frontend
         run: |
           docker build \
-            --build-arg REACT_APP_MOVIE_API_URL=http://k8s-default-backend-04db608027-18be7f4be394aa07.elb.us-east-1.amazonaws.com \
+            --build-arg REACT_APP_MOVIE_API_URL=http://k8s-default-backend-04db608027-18be7f4be394aa07.elb.${{ secrets.AWS_REGION }}.amazonaws.com \
             --tag frontend:latest .
-
+  
       - name: Tag Docker image
         run: |
           docker tag frontend:latest \
             ${{ steps.login-ecr.outputs.registry }}/frontend:latest
-
-      - name: Push Docker image
+  
+      - name: Push Docker image to ECR
         run: |
           docker push \
             ${{ steps.login-ecr.outputs.registry }}/frontend:latest
-
+  
       - name: Configure kubectl
         run: |
           aws eks update-kubeconfig \
             --name cluster \
             --region ${{ secrets.AWS_REGION }}
-
+  
+      - name: Check EKS
+        run: |
+          aws eks describe-cluster \
+            --name cluster \
+            --region ${{ secrets.AWS_REGION }} \
+            --query 'cluster.computeConfig'
+  
+      - name: Check subnets
+        run: |
+          aws eks describe-cluster \
+            --name cluster \
+            --region ${{ secrets.AWS_REGION }} \
+            --query 'cluster.resourcesVpcConfig.subnetIds'
+  
       - name: Deploy to EKS
         working-directory: starter/frontend/k8s
         run: kubectl apply -k .
-
+  
       - name: Update frontend image
         run: |
           kubectl set image deployment/frontend \
             frontend=${{ steps.login-ecr.outputs.registry }}/frontend:latest
-
+  
+      - name: Wait for frontend deployment
+        run: |
+          kubectl rollout status deployment/frontend --timeout=5m
+  
+      - name: Check frontend pods
+        run: |
+          kubectl get pods -l app=frontend -o wide
+  
       - name: Check frontend service
         run: |
-          kubectl get svc frontend
-
-      - name: Verify deployment
+          kubectl get svc frontend -o wide
+  
+      - name: Describe frontend service
         run: |
-          kubectl rollout status deployment/frontend
+          kubectl describe svc frontend
+  
+      - name: Check frontend service YAML
+        run: |
+          kubectl get svc frontend -o yaml
+  
+      - name: Check frontend endpoints
+        run: |
+          kubectl get endpoints frontend -o wide
+  
+      - name: Check frontend endpointslices
+        run: |
+          kubectl get endpointslices \
+            -l kubernetes.io/service-name=frontend \
+            -o wide
+  
+      - name: Check nodes
+        run: |
+          kubectl get nodes -o wide
+  
+      - name: Check frontend NLB
+        run: |
+          aws elbv2 describe-load-balancers \
+            --region ${{ secrets.AWS_REGION }} \
+            --query 'LoadBalancers[?contains(DNSName, `k8s-default-frontend`)].{Name:LoadBalancerName,DNS:DNSName,State:State.Code,Scheme:Scheme,AZs:AvailabilityZones[*].ZoneName}'
+  
+      - name: Check frontend target groups
+        run: |
+          aws elbv2 describe-target-groups \
+            --region ${{ secrets.AWS_REGION }} \
+            --query 'TargetGroups[?contains(TargetGroupName, `k8s-default-frontend`)].{Name:TargetGroupName,ARN:TargetGroupArn,Port:Port,Protocol:Protocol}'
+  
+      - name: Get frontend NLB URL
+        run: |
+          NLB_URL=$(kubectl get svc frontend \
+            -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+  
+          echo "Frontend NLB: $NLB_URL"
+  
+          if [ -z "$NLB_URL" ]; then
+            echo "NLB hostname is still pending."
+            exit 1
+          fi
+  
+          echo "FRONTEND_URL=http://$NLB_URL" >> "$GITHUB_ENV"
+  
+      - name: Test frontend from GitHub runner
+        run: |
+          echo "Testing: $FRONTEND_URL"
+  
+          curl -v \
+            --connect-timeout 10 \
+            --max-time 30 \
+            "$FRONTEND_URL"
+  
+      - name: Final frontend status
+        run: |
+          kubectl get deployment frontend
+          kubectl get pods -l app=frontend
+          kubectl get svc frontend
+          kubectl get endpoints frontend
