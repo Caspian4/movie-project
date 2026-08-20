@@ -5,12 +5,12 @@ metadata:
   labels:
     app: backend
   annotations:
-    service.beta.kubernetes.io/aws-load-balancer-subnets: subnet-03f60cb5232683f0c, subnet-0d2099f19c54693f5
+    service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+    service.beta.kubernetes.io/aws-load-balancer-subnets: subnet-0d2099f19c54693f5,subnet-03f60cb5232683f0c
 spec:
-  type: LoadBalancer
   selector:
     app: backend
+  type: LoadBalancer
   ports:
-    - protocol: TCP
-      port: 80
+    - port: 80
       targetPort: 5000
